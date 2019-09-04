@@ -8,7 +8,7 @@ use stdweb::js;
 mod config;
 mod controllers;
 mod logging;
-mod roles;
+mod creeps;
 
 fn main() {
     logging::setup_logging(logging::Info);

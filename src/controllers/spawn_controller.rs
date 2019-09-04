@@ -1,4 +1,4 @@
-use crate::{config::Config, roles::RoleType};
+use crate::{config::Config, creeps::Role};
 use log::*;
 use rand::{rngs::SmallRng, seq::IteratorRandom};
 use rand_core::SeedableRng;
@@ -38,7 +38,7 @@ impl<'c> SpawnController<'c> {
         // Get the number of creeps in each role by iterating
         // through the creeps in the room and incrementing the
         // counter for that role
-        let mut current_roles = HashMap::<RoleType, u8>::new();
+        let mut current_roles = HashMap::<Role, u8>::new();
         for creep in self.room.find(find::MY_CREEPS) {
             if let Ok(Some(role)) = creep.memory().get("role") {
                 let counter = current_roles.entry(role).or_insert(0);
@@ -66,7 +66,7 @@ impl<'c> SpawnController<'c> {
         }
     }
 
-    pub fn spawn(&self, spawn: StructureSpawn, role: RoleType) -> Result<ReturnCode, String> {
+    pub fn spawn(&self, spawn: StructureSpawn, role: Role) -> Result<ReturnCode, String> {
         let body = self
             .config
             .equip
