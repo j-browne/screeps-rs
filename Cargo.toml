@@ -1,5 +1,5 @@
 [package]
-name = "screeps-starter-rust"
+name = "screeps-rs"
 version = "0.0.0"
 authors = []
 edition = "2018"
@@ -8,7 +8,12 @@ edition = "2018"
 stdweb = "0.4"
 log = "0.4"
 fern = "0.5"
-screeps-game-api = "0.6"
+rand = { version = "*", features = ["stdweb", "small_rng"] }
+rand_core = "*"
+screeps-game-api = {path = "../screeps-game-api/"}
+serde = "*"
+serde_derive = "*"
+serde_json = "*"
 
 [profile.release]
 panic = "abort"
