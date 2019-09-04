@@ -1,8 +1,12 @@
 #[macro_use]
 extern crate serde_derive;
 
-use crate::controllers::{MemoryController, SpawnController};
+use crate::{
+    controllers::{MemoryController, SpawnController},
+    creeps::Creep,
+};
 use log::*;
+use std::collections::HashMap;
 use stdweb::js;
 
 mod config;
@@ -51,11 +55,19 @@ fn game_loop() -> Result<(), Box<dyn std::error::Error>> {
     let config = screeps::memory::root()
         .get("config")?
         .ok_or("undefined or null config")?;
+    let creeps = screeps::game::creeps::hashmap()
+        .into_iter()
+        .map(|(k, v)| Ok((k, Creep::new(v)?)))
+        .collect::<Result<HashMap<String, Creep>, Box<dyn std::error::Error>>>()?;
 
     MemoryController::new().run()?;
 
     for room in screeps::game::rooms::values() {
         SpawnController::new(room, &config).run();
+    }
+
+    for (_, creep) in creeps {
+        creep.run();
     }
 
     Ok(())

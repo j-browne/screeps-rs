@@ -1,5 +1,5 @@
 use screeps::Position;
-use std::fmt;
+use std::{collections::VecDeque, fmt};
 use stdweb::{__js_serializable_boilerplate, js_deserializable, js_serializable};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -20,6 +20,12 @@ pub enum Role {
 
 js_serializable!(Role);
 js_deserializable!(Role);
+
+impl Default for Role {
+    fn default() -> Self {
+        Role::Generic
+    }
+}
 
 impl fmt::Display for Role {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -45,20 +51,27 @@ js_serializable!(Job);
 js_deserializable!(Job);
 
 pub struct Creep {
+    creep: screeps::objects::Creep,
     role: Role,
-    job: Option<Job>,
+    jobs: VecDeque<Job>,
 }
 
 impl Creep {
-    pub fn new(role: Role) -> Creep {
-        Creep {
+    pub fn new(creep: screeps::objects::Creep) -> Result<Self, Box<dyn std::error::Error>> {
+        let memory = creep.memory();
+        let role = memory.get("role")?.unwrap_or_default();
+        let jobs: Vec<Job> = memory.get("jobs")?.unwrap_or_default();
+        let jobs = jobs.into();
+
+        Ok( Self {
+            creep,
             role,
-            job: None,
-        }
+            jobs,
+        })
     }
 
     pub fn run(&self) {
-        match self.job {
+        match self.jobs.front() {
             Some(Job::Move{..}) => {}
             Some(Job::Harvest{..}) => {}
             _ => {}
