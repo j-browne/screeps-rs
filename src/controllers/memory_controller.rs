@@ -1,3 +1,7 @@
+use crate::{
+    config::Config,
+    error::Res,
+};
 use log::*;
 use std::collections::HashSet;
 
@@ -8,15 +12,15 @@ impl MemoryController {
         Self {}
     }
 
-    pub fn run(&self) -> Result<(), Box<dyn std::error::Error>> {
-        self.creeps()?;
-        self.spawns()?;
-        self.flags()?;
+    pub fn cleanup(&self) -> Res<()> {
+        self.cleanup_creeps()?;
+        self.cleanup_spawns()?;
+        self.cleanup_flags()?;
 
         Ok(())
     }
 
-    fn creeps(&self) -> Result<(), Box<dyn std::error::Error>> {
+    fn cleanup_creeps(&self) -> Res<()> {
         let creeps_active: HashSet<String> = screeps::game::creeps::keys().into_iter().collect();
         let creeps_memory = screeps::memory::root()
             .dict("creeps")?
@@ -32,7 +36,7 @@ impl MemoryController {
         Ok(())
     }
 
-    fn spawns(&self) -> Result<(), Box<dyn std::error::Error>> {
+    fn cleanup_spawns(&self) -> Res<()> {
         let spawns_active: HashSet<String> = screeps::game::spawns::keys().into_iter().collect();
         let spawns_memory = screeps::memory::root()
             .dict("spawns")?
@@ -48,7 +52,7 @@ impl MemoryController {
         Ok(())
     }
 
-    fn flags(&self) -> Result<(), Box<dyn std::error::Error>> {
+    fn cleanup_flags(&self) -> Res<()> {
         let flags_active: HashSet<String> = screeps::game::flags::keys().into_iter().collect();
         let flags_memory = screeps::memory::root()
             .dict("flags")?
@@ -62,5 +66,16 @@ impl MemoryController {
         }
 
         Ok(())
+    }
+
+
+    pub fn config(&self) -> Res<Config> {
+        Ok(screeps::memory::root()
+            .get("config")?
+            .ok_or("undefined or null config")?)
+    }
+
+    pub fn update(&self) -> Res<()> {
+        unimplemented!()
     }
 }

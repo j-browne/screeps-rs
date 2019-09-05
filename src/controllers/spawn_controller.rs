@@ -1,4 +1,4 @@
-use crate::{config::Config, creeps::Role};
+use crate::{config::Config, creeps::Role, error::Res};
 use log::*;
 use rand::{rngs::SmallRng, seq::IteratorRandom};
 use rand_core::SeedableRng;
@@ -66,7 +66,7 @@ impl<'c> SpawnController<'c> {
         }
     }
 
-    pub fn spawn(&self, spawn: StructureSpawn, role: Role) -> Result<ReturnCode, String> {
+    pub fn spawn(&self, spawn: StructureSpawn, role: Role) -> Res<ReturnCode> {
         let body = self
             .config
             .equip

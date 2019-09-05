@@ -1,4 +1,8 @@
-use screeps::Position;
+use crate::error::Res;
+use screeps::{
+    Position,
+    HasPosition,
+};
 use std::{collections::VecDeque, fmt};
 use stdweb::{__js_serializable_boilerplate, js_deserializable, js_serializable};
 
@@ -51,13 +55,13 @@ js_serializable!(Job);
 js_deserializable!(Job);
 
 pub struct Creep {
-    creep: screeps::objects::Creep,
+    creep: screeps::Creep,
     role: Role,
     jobs: VecDeque<Job>,
 }
 
 impl Creep {
-    pub fn new(creep: screeps::objects::Creep) -> Result<Self, Box<dyn std::error::Error>> {
+    pub fn new(creep: screeps::Creep) -> Res<Self> {
         let memory = creep.memory();
         let role = memory.get("role")?.unwrap_or_default();
         let jobs: Vec<Job> = memory.get("jobs")?.unwrap_or_default();
@@ -70,9 +74,14 @@ impl Creep {
         })
     }
 
-    pub fn run(&self) {
+    pub fn run(&mut self) {
         match self.jobs.front() {
-            Some(Job::Move{..}) => {}
+            Some(Job::Move{pos}) => {
+                self.creep.move_to(pos);
+                if self.creep.pos().is_near_to(pos) {
+                    self.jobs.pop_front();
+                }
+            },
             Some(Job::Harvest{..}) => {}
             _ => {}
         }
