@@ -1,15 +1,37 @@
 use crate::{
     config::Config,
     error::Res,
+    creeps::CreepMemory,
 };
 use log::*;
-use std::collections::HashSet;
+use std::{
+    collections::{HashMap, HashSet},
+    ops::Drop,
+};
+use screeps::memory::MemoryReference;
+use stdweb::{__js_serializable_boilerplate, js_deserializable, js_serializable};
 
-pub struct MemoryController {}
+
+pub struct MemoryController {
+    mem: MemoryReference,
+    config: Config,
+    creeps: HashMap<String, CreepMemory>,
+}
 
 impl MemoryController {
-    pub fn new() -> Self {
-        Self {}
+    pub fn new(mem: MemoryReference) -> Res<Self> {
+        let config = mem
+            .get("config")?
+            .ok_or("undefined or null config")?;
+        let creeps = mem
+            .get("creeps")?
+            .ok_or("undefined or null creep memory")?;
+
+        Ok(Self{
+            mem,
+            config,
+            creeps,
+        })
     }
 
     pub fn cleanup(&self) -> Res<()> {
@@ -68,14 +90,30 @@ impl MemoryController {
         Ok(())
     }
 
-
-    pub fn config(&self) -> Res<Config> {
-        Ok(screeps::memory::root()
-            .get("config")?
-            .ok_or("undefined or null config")?)
+    pub fn config(&self) -> &Config {
+        &self.config
     }
 
-    pub fn update(&self) -> Res<()> {
-        unimplemented!()
+    pub fn config_mut(&mut self) -> &mut Config {
+        &mut self.config
+    }
+
+    pub fn creeps(&self) -> &HashMap<String, CreepMemory> {
+        &self.creeps
+    }
+
+    pub fn creeps_mut(&mut self) -> &mut HashMap<String, CreepMemory> {
+        &mut self.creeps
+    }
+
+    pub fn update(&self) {
+        self.mem.set("config", self.config);
+        self.mem.set("creeps", self.creeps);
+    }
+}
+
+impl Drop for MemoryController {
+    fn drop(&mut self) {
+        self.update()
     }
 }

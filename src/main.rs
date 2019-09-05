@@ -3,11 +3,10 @@ extern crate serde_derive;
 
 use crate::{
     controllers::{MemoryController, SpawnController},
-    creeps::Creep,
     error::Res,
+    creeps::run_creep,
 };
 use log::*;
-use std::collections::HashMap;
 use stdweb::js;
 
 mod config;
@@ -54,24 +53,19 @@ fn game_loop_catch() {
 }
 
 fn game_loop() -> Res<()> {
-    let memory_controller = MemoryController::new();
+    let mut memory_controller = MemoryController::new(screeps::memory::root())?;
     memory_controller.cleanup()?;
 
-    let config = memory_controller.config()?;
-    let creeps = screeps::game::creeps::hashmap()
-        .into_iter()
-        .map(|(k, v)| Ok((k, Creep::new(v)?)))
-        .collect::<Res<HashMap<String, Creep>>>()?;
+    let config = memory_controller.config();
+    let creeps_memory = memory_controller.creeps_mut();
 
     for room in screeps::game::rooms::values() {
-        SpawnController::new(room, &config).run();
+        SpawnController::new(room, config).run();
     }
 
-    for (_, mut creep) in creeps {
-        creep.run();
+    for creep in screeps::game::creeps::values() {
+        run_creep(creep, creeps_memory);
     }
-
-    memory_controller.update()?;
 
     Ok(())
 }
