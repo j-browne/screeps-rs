@@ -6,26 +6,26 @@ use crate::{
 use log::*;
 use std::{
     collections::{HashMap, HashSet},
-    ops::Drop,
 };
 use screeps::memory::MemoryReference;
-use stdweb::{__js_serializable_boilerplate, js_deserializable, js_serializable};
 
 
 pub struct MemoryController {
     mem: MemoryReference,
-    config: Config,
-    creeps: HashMap<String, CreepMemory>,
+    config: Option<Config>,
+    creeps: Option<HashMap<String, CreepMemory>>,
 }
 
 impl MemoryController {
     pub fn new(mem: MemoryReference) -> Res<Self> {
-        let config = mem
+        let config = Some(mem
             .get("config")?
-            .ok_or("undefined or null config")?;
-        let creeps = mem
+            .ok_or("undefined or null config")?
+        );
+        let creeps = Some(mem
             .get("creeps")?
-            .ok_or("undefined or null creep memory")?;
+            .ok_or("undefined or null creep memory")?
+        );
 
         Ok(Self{
             mem,
@@ -90,30 +90,28 @@ impl MemoryController {
         Ok(())
     }
 
-    pub fn config(&self) -> &Config {
-        &self.config
+    pub fn set_config(&mut self, config: Config) {
+        self.config = Some(config);
     }
 
-    pub fn config_mut(&mut self) -> &mut Config {
-        &mut self.config
+    pub fn take_config(&mut self) -> Res<Config> {
+        Ok(self.config.take().ok_or("config is not populated")?)
     }
 
-    pub fn creeps(&self) -> &HashMap<String, CreepMemory> {
-        &self.creeps
+    pub fn set_creeps(&mut self, creeps: HashMap<String, CreepMemory>) {
+        self.creeps = Some(creeps);
     }
 
-    pub fn creeps_mut(&mut self) -> &mut HashMap<String, CreepMemory> {
-        &mut self.creeps
+    pub fn take_creeps(&mut self) -> Res<HashMap<String, CreepMemory>> {
+        Ok(self.creeps.take().ok_or("creeps is not populated")?)
     }
 
-    pub fn update(&self) {
-        self.mem.set("config", self.config);
-        self.mem.set("creeps", self.creeps);
-    }
-}
-
-impl Drop for MemoryController {
-    fn drop(&mut self) {
-        self.update()
+    pub fn update(self) {
+        if let Some(config) = self.config {
+            self.mem.set("config", config);
+        }
+        if let Some(creeps) = self.creeps {
+            self.mem.set("creeps", creeps);
+        }
     }
 }
