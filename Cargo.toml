@@ -10,7 +10,7 @@ log = "0.4"
 fern = "0.5"
 rand = { version = "*", features = ["stdweb", "small_rng"] }
 rand_core = "*"
-screeps-game-api = {git = "https://github.com/j-browne/screeps-game-api/"}
+screeps-game-api = {git = "https://github.com/j-browne/screeps-game-api/", branch = "v0.6.0_patched"}
 serde = "*"
 serde_derive = "*"
 serde_json = "*"
