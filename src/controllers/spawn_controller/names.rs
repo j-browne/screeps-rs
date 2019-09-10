@@ -92,7 +92,7 @@ pub const NAMES: [&str; 200] = [
     "Munchkin",
     "Bunny",
     "Dearey",
-    "Pyscho",
+    "Psycho",
     "Chum",
     "Creedence",
     "Flower",

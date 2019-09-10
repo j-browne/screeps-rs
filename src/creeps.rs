@@ -1,13 +1,13 @@
 use crate::error::Res;
-use screeps::{
-    Creep,
-    Position,
-    HasPosition,
-    objects::Source,
-    local::ObjectId,
+use self::actions::Action;
+use screeps::Creep as ScreepCreep;
+use std::{
+    collections::VecDeque,
+    fmt,
 };
-use std::{collections::{HashMap, VecDeque}, fmt};
 use stdweb::{__js_serializable_boilerplate, js_deserializable, js_serializable};
+
+mod actions;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Role {
@@ -47,44 +47,116 @@ impl fmt::Display for Role {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum Job {
-    Move { pos: Position },
-    Harvest { source_id: ObjectId<Source> },
-}
-
-js_serializable!(Job);
-js_deserializable!(Job);
-
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct CreepMemory {
     #[serde(default)]
     role: Role,
     #[serde(default)]
-    jobs: VecDeque<Job>,
+    actions: VecDeque<Action>,
 }
 
 js_serializable!(CreepMemory);
 js_deserializable!(CreepMemory);
 
-pub fn run_creep(creep: Creep, creeps_memory: &mut HashMap<String, CreepMemory>) -> Res<()> {
-    let memory = creeps_memory.entry(creep.name()).or_default();
-    let jobs = &mut memory.jobs;
-    match jobs.front().clone() {
-        Some(Job::Move {pos}) => {
-            if *pos == creep.pos() {
-                jobs.pop_front();
-            } else {
-                creep.move_to(pos);
-            }
-        }
-        Some(Job::Harvest {source_id}) => {
-            let source: Source = screeps::game::get_object_typed(*source_id)?.ok_or("undefined or null source")?;
-            if creep.pos().is_near_to(&source) {
-            }
-        }
-        None => {}
+pub struct Creep {
+    obj: ScreepCreep,
+    memory: CreepMemory,
+}
+
+impl Drop for Creep {
+    fn drop(&mut self) {
+        screeps::memory::root().path_set(&format!("creeps.{}", self.obj.name()), self.memory.clone());
+    }
+}
+
+impl Creep {
+    pub fn new(obj: ScreepCreep) -> Res<Self> {
+        let memory = screeps::memory::root().get_path(&format!("creeps.{}", obj.name()))?
+            .ok_or_else(|| format!("undefined or null creep memory for {}", obj.name()))?;
+        Ok(Self {
+            obj,
+            memory,
+        })
     }
 
-    Ok(())
+    pub fn run(&mut self) -> Res<()> {
+        let actions = &mut self.memory.actions;
+        match actions.front().cloned() {
+            Some(Action::GoTo { pos }) => {
+                actions::go_to(self, pos);
+            }
+            Some(Action::GoToRoom { room_id }) => {
+                actions::go_to_room(self, room_id);
+            }
+            Some(Action::TransferAll { target, resource }) => {
+                actions::transfer_all(self, target, resource);
+            }
+            Some(Action::TransferAmount { target, resource, amount }) => {
+                actions::transfer_amount(self, target, resource, amount);
+            }
+            Some(Action::WithdrawAll { target, resource }) => {
+                actions::withdraw_all(self, target, resource);
+            }
+            Some(Action::WithdrawAmount { target, resource, amount }) => {
+                actions::withdraw_amount(self, target, resource, amount);
+            }
+            Some(Action::PickupAll { target }) => {
+                actions::pickup_all(self, target);
+            }
+            Some(Action::PickupAmount { target, amount }) => {
+                actions::pickup_amount(self, target, amount);
+            }
+            Some(Action::Harvest { target }) => {
+                actions::harvest(self, target);
+            }
+            Some(Action::Build { site }) => {
+                actions::build(self, site);
+            }
+            Some(Action::Dismantle { target }) => {
+                actions::dismantle(self, target);
+            }
+            Some(Action::Repair { target }) => {
+                actions::repair(self, target);
+            }
+            Some(Action::Fortify { target }) => {
+                actions::fortify(self, target);
+            }
+            Some(Action::ControllerAttack { controller }) => {
+                actions::controller_attack(self, controller);
+            }
+            Some(Action::ControllerClaim { controller }) => {
+                actions::controller_claim(self, controller);
+            }
+            Some(Action::ControllerUpgrade { controller }) => {
+                actions::controller_upgrade(self, controller);
+            }
+            Some(Action::ControllerReserve { controller }) => {
+                actions::controller_reserve(self, controller);
+            }
+            Some(Action::Heal { target }) => {
+                actions::heal(self, target);
+            }
+            Some(Action::HealRanged { target }) => {
+                actions::heal_ranged(self, target);
+            }
+            Some(Action::AttackMelee { target }) => {
+                actions::attack_melee(self, target);
+            }
+            Some(Action::AttackRanged { target }) => {
+                actions::attack_ranged(self, target);
+            }
+            Some(Action::AttackRangedMass) => {
+                actions::attack_ranged_mass(self);
+            }
+            Some(Action::GetBoosted { lab }) => {
+                actions::get_boosted(self, lab);
+            }
+            Some(Action::GetRenewed { spawn }) => {
+                actions::get_renewed(self, spawn);
+            }
+            None => {}
+        }
+
+        Ok(())
+    }
 }

@@ -1,37 +1,12 @@
-use crate::{
-    config::Config,
-    error::Res,
-    creeps::CreepMemory,
-};
+use crate::error::Res;
 use log::*;
-use std::{
-    collections::{HashMap, HashSet},
-};
-use screeps::memory::MemoryReference;
+use std::collections::{HashSet};
 
-
-pub struct MemoryController {
-    mem: MemoryReference,
-    config: Option<Config>,
-    creeps: Option<HashMap<String, CreepMemory>>,
-}
+pub struct MemoryController { }
 
 impl MemoryController {
-    pub fn new(mem: MemoryReference) -> Res<Self> {
-        let config = Some(mem
-            .get("config")?
-            .ok_or("undefined or null config")?
-        );
-        let creeps = Some(mem
-            .get("creeps")?
-            .ok_or("undefined or null creep memory")?
-        );
-
-        Ok(Self{
-            mem,
-            config,
-            creeps,
-        })
+    pub fn new() -> Self {
+        Self {}
     }
 
     pub fn cleanup(&self) -> Res<()> {
@@ -88,30 +63,5 @@ impl MemoryController {
         }
 
         Ok(())
-    }
-
-    pub fn set_config(&mut self, config: Config) {
-        self.config = Some(config);
-    }
-
-    pub fn take_config(&mut self) -> Res<Config> {
-        Ok(self.config.take().ok_or("config is not populated")?)
-    }
-
-    pub fn set_creeps(&mut self, creeps: HashMap<String, CreepMemory>) {
-        self.creeps = Some(creeps);
-    }
-
-    pub fn take_creeps(&mut self) -> Res<HashMap<String, CreepMemory>> {
-        Ok(self.creeps.take().ok_or("creeps is not populated")?)
-    }
-
-    pub fn update(self) {
-        if let Some(config) = self.config {
-            self.mem.set("config", config);
-        }
-        if let Some(creeps) = self.creeps {
-            self.mem.set("creeps", creeps);
-        }
     }
 }
