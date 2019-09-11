@@ -1,8 +1,8 @@
 use crate::error::Res;
 use log::*;
-use std::collections::{HashSet};
+use std::collections::HashSet;
 
-pub struct MemoryController { }
+pub struct MemoryController {}
 
 impl MemoryController {
     pub fn new() -> Self {

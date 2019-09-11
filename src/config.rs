@@ -1,7 +1,4 @@
-use crate::{
-    creeps::Role,
-    error::Res,
-};
+use crate::{creeps::Role, error::Res};
 use screeps::constants::Part;
 use std::collections::HashMap;
 use stdweb::{__js_serializable_boilerplate, js_deserializable, js_serializable};
@@ -14,10 +11,9 @@ pub struct Config {
 
 impl Config {
     pub fn new() -> Res<Self> {
-        Ok(
-            screeps::memory::root().get("config")?
-                .ok_or("undefined or null config memory")?
-        )
+        Ok(screeps::memory::root()
+            .get("config")?
+            .ok_or("undefined or null config memory")?)
     }
 }
 
