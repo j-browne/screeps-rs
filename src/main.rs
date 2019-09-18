@@ -2,10 +2,8 @@
 extern crate serde_derive;
 
 use crate::{
-    config::Config,
-    controllers::{MemoryController, SpawnController},
-    creeps::Creep,
-    error::Res,
+    config::Config, controllers::MemoryController, creeps::Creep, error::Res, mayor::Mayor,
+    rooms::Room,
 };
 use log::*;
 use stdweb::js;
@@ -15,6 +13,9 @@ mod controllers;
 mod creeps;
 mod error;
 mod logging;
+mod mayor;
+mod names;
+mod rooms;
 
 fn main() {
     logging::setup_logging(logging::Info);
@@ -60,7 +61,7 @@ fn game_loop() -> Res<()> {
     let config = Config::new()?;
 
     for room in screeps::game::rooms::values() {
-        SpawnController::new(room, &config).run();
+        Mayor::new(Room::new(room)?, &config).run()?;
     }
 
     for creep in screeps::game::creeps::values() {

@@ -10,18 +10,19 @@ mod roles;
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct CreepMemory {
+    pub home: String,
     #[serde(default)]
-    role: Role,
+    pub role: Role,
     #[serde(default)]
-    actions: VecDeque<Action>,
+    pub actions: VecDeque<Action>,
 }
 
 js_serializable!(CreepMemory);
 js_deserializable!(CreepMemory);
 
 pub struct Creep {
-    obj: ScreepCreep,
-    memory: CreepMemory,
+    pub obj: ScreepCreep,
+    pub memory: CreepMemory,
 }
 
 impl Drop for Creep {

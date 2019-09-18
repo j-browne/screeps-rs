@@ -1,3 +1,6 @@
+use rand::{rngs::SmallRng, seq::IteratorRandom};
+use rand_core::SeedableRng;
+
 pub const NAMES: [&str; 200] = [
     "Sugar",
     "Junior",
@@ -200,3 +203,13 @@ pub const NAMES: [&str; 200] = [
     "Baby Boo",
     "Kit-Kat",
 ];
+
+pub fn get_random_name() -> String {
+    let mut rng = SmallRng::seed_from_u64(screeps::game::time().into());
+    NAMES
+        .iter()
+        .filter(|n| !screeps::game::creeps::hashmap().contains_key(**n))
+        .choose(&mut rng)
+        .map(|s| s.to_string())
+        .unwrap_or_else(|| format!("Creep_{}", screeps::game::time()))
+}
