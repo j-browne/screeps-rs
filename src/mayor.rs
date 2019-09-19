@@ -1,4 +1,10 @@
-use crate::{config::Config, creeps::Role, error::Res, names::get_random_name, rooms::Room};
+use crate::{
+    config::Config,
+    creeps::{Creep, Role},
+    error::Res,
+    names::get_random_name,
+    rooms::Room,
+};
 use log::*;
 use screeps::{find, memory::MemoryReference, ReturnCode, SpawnOptions, StructureSpawn};
 use std::collections::HashMap;
@@ -14,6 +20,14 @@ impl<'a> Mayor<'a> {
     }
 
     pub fn run(self) -> Res<()> {
+        let my_creeps = screeps::game::creeps::values()
+            .into_iter()
+            .map(|c| Creep::new(c))
+            .collect::<Res<Vec<_>>>()?
+            .into_iter()
+            .filter(|c| c.memory.home == self.room.obj.name())
+            .collect::<Vec<_>>();
+
         self.determine_spawns()?;
 
         Ok(())

@@ -2,8 +2,9 @@
 use super::Creep;
 use crate::error::Res;
 use screeps::{
-    game::get_object_erased, traits::IntoExpectedType, ConstructionSite, HasPosition,
-    MoveToOptions, Position, ResourceType, Source, Structure, StructureController, StructureLab, StructureSpawn,
+    game::get_object_erased, traits::IntoExpectedType, ConstructionSite, Creep as ScreepsCreep,
+    HasPosition, MoveToOptions, Position, Resource, ResourceType, Source, Structure,
+    StructureController, StructureLab, StructureSpawn,
 };
 use stdweb::{Reference, __js_serializable_boilerplate, js_deserializable, js_serializable};
 
@@ -15,6 +16,8 @@ const RANGE_WITHDRAW: u32 = 1;
 const RANGE_HARVEST: u32 = 1;
 const RANGE_BUILD: u32 = 3;
 const RANGE_REPAIR: u32 = 3;
+const RANGE_HEAL: u32 = 1;
+const RANGE_HEAL_RANGED: u32 = 3;
 const RANGE_ATTACK_MELEE: u32 = 1;
 const RANGE_ATTACK_RANGED: u32 = 3;
 const RANGE_CONTROLLER_ATTACK: u32 = 1;
@@ -56,12 +59,8 @@ pub enum Action {
         resource: ResourceType,
         amount: u32,
     },
-    PickupAll {
+    Pickup {
         target_id: Id,
-    },
-    PickupAmount {
-        target_id: Id,
-        amount: u32,
     },
     Harvest {
         target_id: Id,
@@ -79,28 +78,28 @@ pub enum Action {
         target_id: Id,
     },
     ControllerAttack {
-        controller_id: Id,
+        target_id: Id,
     },
     ControllerClaim {
-        controller_id: Id,
+        target_id: Id,
     },
     ControllerUpgrade {
-        controller_id: Id,
+        target_id: Id,
     },
     ControllerReserve {
-        controller_id: Id,
+        target_id: Id,
     },
     Heal {
-        creep_id: Id,
+        target_id: Id,
     },
     HealRanged {
-        creep_id: Id,
+        target_id: Id,
     },
     AttackMelee {
-        creep_id: Id,
+        target_id: Id,
     },
     AttackRanged {
-        creep_id: Id,
+        target_id: Id,
     },
     AttackRangedMass,
     GetBoosted {
@@ -134,33 +133,30 @@ impl Action {
                 target_id,
                 resource,
             } => {
-                transfer_all(creep, target_id, resource)?;
+                transfer_all(creep, target_id, *resource)?;
             }
             TransferAmount {
                 target_id,
                 resource,
                 amount,
             } => {
-                transfer_amount(creep, target_id, resource, *amount)?;
+                transfer_amount(creep, target_id, *resource, *amount)?;
             }
             WithdrawAll {
                 target_id,
                 resource,
             } => {
-                withdraw_all(creep, target_id, resource)?;
+                withdraw_all(creep, target_id, *resource)?;
             }
             WithdrawAmount {
                 target_id,
                 resource,
                 amount,
             } => {
-                withdraw_amount(creep, target_id, resource, *amount)?;
+                withdraw_amount(creep, target_id, *resource, *amount)?;
             }
-            PickupAll { target_id } => {
-                pickup_all(creep, target_id)?;
-            }
-            PickupAmount { target_id, amount } => {
-                pickup_amount(creep, target_id, *amount)?;
+            Pickup { target_id } => {
+                pickup(creep, target_id)?;
             }
             Harvest { target_id } => {
                 harvest(creep, target_id)?;
@@ -177,29 +173,29 @@ impl Action {
             Fortify { target_id } => {
                 fortify(creep, target_id)?;
             }
-            ControllerAttack { controller_id } => {
-                controller_attack(creep, controller_id)?;
+            ControllerAttack { target_id } => {
+                controller_attack(creep, target_id)?;
             }
-            ControllerClaim { controller_id } => {
-                controller_claim(creep, controller_id)?;
+            ControllerClaim { target_id } => {
+                controller_claim(creep, target_id)?;
             }
-            ControllerUpgrade { controller_id } => {
-                controller_upgrade(creep, controller_id)?;
+            ControllerUpgrade { target_id } => {
+                controller_upgrade(creep, target_id)?;
             }
-            ControllerReserve { controller_id } => {
-                controller_reserve(creep, controller_id)?;
+            ControllerReserve { target_id } => {
+                controller_reserve(creep, target_id)?;
             }
-            Heal { creep_id } => {
-                heal(creep, creep_id)?;
+            Heal { target_id } => {
+                heal(creep, target_id)?;
             }
-            HealRanged { creep_id } => {
-                heal_ranged(creep, creep_id)?;
+            HealRanged { target_id } => {
+                heal_ranged(creep, target_id)?;
             }
-            AttackMelee { creep_id } => {
-                attack_melee(creep, creep_id)?;
+            AttackMelee { target_id } => {
+                attack_melee(creep, target_id)?;
             }
-            AttackRanged { creep_id } => {
-                attack_ranged(creep, creep_id)?;
+            AttackRanged { target_id } => {
+                attack_ranged(creep, target_id)?;
             }
             AttackRangedMass => {
                 attack_ranged_mass(creep)?;
@@ -232,7 +228,7 @@ fn prepend_go_to_if_far(creep: &mut Creep, pos: Position, range: u32) -> Res<()>
     Ok(())
 }
 
-pub fn go_to(creep: &mut Creep, pos: Position) -> Res<()> {
+fn go_to(creep: &mut Creep, pos: Position) -> Res<()> {
     creep.obj.move_to(&pos);
 
     // When done, remove the action
@@ -245,11 +241,11 @@ pub fn go_to(creep: &mut Creep, pos: Position) -> Res<()> {
     Ok(())
 }
 
-pub fn go_to_room(creep: &mut Creep, room_id: &Id) -> Res<()> {
+fn go_to_room(creep: &mut Creep, room_id: &Id) -> Res<()> {
     unimplemented!()
 }
 
-pub fn go_to_ranged(creep: &mut Creep, pos: Position, range: u32) -> Res<()> {
+fn go_to_ranged(creep: &mut Creep, pos: Position, range: u32) -> Res<()> {
     let options = MoveToOptions::new().range(range);
     creep.obj.move_to_with_options(&pos, options);
 
@@ -263,50 +259,94 @@ pub fn go_to_ranged(creep: &mut Creep, pos: Position, range: u32) -> Res<()> {
     Ok(())
 }
 
-pub fn transfer_all(creep: &mut Creep, target: &Id, resource: &ResourceType) -> Res<()> {
-    // If target is not near, order a GoTo first
-    // When done, remove the action
-    unimplemented!()
+fn transfer_all(creep: &mut Creep, target_id: &Id, resource: ResourceType) -> Res<()> {
+    let target = get_structure_from_id(target_id)?;
+    let target_pos = target.pos();
+    let target = target
+        .as_transferable()
+        .ok_or_else(|| format!("{} is not transferable", target_id))?;
+
+    prepend_go_to_if_far(creep, target_pos, RANGE_TRANSFER)?;
+    creep.obj.transfer_all(target, resource);
+
+    creep.memory.actions.pop_front();
+
+    // FIXME: Creeps aren't handled
+    // FIXME: Check if it worked
+
+    Ok(())
 }
 
-pub fn transfer_amount(
+fn transfer_amount(
     creep: &mut Creep,
-    target: &Id,
-    resource: &ResourceType,
+    target_id: &Id,
+    resource: ResourceType,
     amount: u32,
 ) -> Res<()> {
-    // If target is not near, order a GoTo first
-    // When done, remove the action
-    unimplemented!()
+    let target = get_structure_from_id(target_id)?;
+    let target_pos = target.pos();
+    let target = target
+        .as_transferable()
+        .ok_or_else(|| format!("{} is not transferable", target_id))?;
+
+    prepend_go_to_if_far(creep, target_pos, RANGE_TRANSFER)?;
+    creep.obj.transfer_amount(target, resource, amount);
+
+    // FIXME: Creeps aren't handled
+    // FIXME: Check if it worked
+    // FIXME: If done, remove job
+
+    Ok(())
 }
 
-pub fn withdraw_all(creep: &mut Creep, target: &Id, resource: &ResourceType) -> Res<()> {
-    // If target is not near, order a GoTo first
-    // When done, remove the action
-    unimplemented!()
+fn withdraw_all(creep: &mut Creep, target_id: &Id, resource: ResourceType) -> Res<()> {
+    let target = get_structure_from_id(target_id)?;
+    let target_pos = target.pos();
+    let target = target
+        .as_withdrawable()
+        .ok_or_else(|| format!("{} is not withdrawable", target_id))?;
+
+    prepend_go_to_if_far(creep, target_pos, RANGE_WITHDRAW)?;
+    creep.obj.withdraw_all(target, resource);
+
+    // FIXME: Check if it worked
+    // FIXME: If done, remove job
+
+    Ok(())
 }
 
-pub fn withdraw_amount(
+fn withdraw_amount(
     creep: &mut Creep,
-    target: &Id,
-    resource: &ResourceType,
+    target_id: &Id,
+    resource: ResourceType,
     amount: u32,
 ) -> Res<()> {
-    // If target is not near, order a GoTo first
-    // When done, remove the action
-    unimplemented!()
+    let target = get_structure_from_id(target_id)?;
+    let target_pos = target.pos();
+    let target = target
+        .as_withdrawable()
+        .ok_or_else(|| format!("{} is not withdrawable", target_id))?;
+
+    prepend_go_to_if_far(creep, target_pos, RANGE_WITHDRAW)?;
+    creep.obj.withdraw_amount(target, resource, amount);
+
+    // FIXME: Check if it worked
+    // FIXME: If done, remove job
+
+    Ok(())
 }
 
-pub fn pickup_all(creep: &mut Creep, target: &Id) -> Res<()> {
-    // If target is not near, order a GoTo first
-    // When done, remove the action
-    unimplemented!()
-}
+fn pickup(creep: &mut Creep, target_id: &Id) -> Res<()> {
+    let target: Resource = screeps::game::get_object_typed(&target_id)?
+        .ok_or_else(|| format!("no object with id {}", target_id))?;
 
-pub fn pickup_amount(creep: &mut Creep, target: &Id, amount: u32) -> Res<()> {
-    // If target is not near, order a GoTo first
-    // When done, remove the action
-    unimplemented!()
+    prepend_go_to_if_far(creep, target.pos(), RANGE_TRANSFER)?;
+    creep.obj.pickup(&target);
+
+    // FIXME: Check if it worked
+    // FIXME: If done, remove job
+
+    Ok(())
 }
 
 pub fn harvest(creep: &mut Creep, target_id: &Id) -> Res<()> {
@@ -315,13 +355,13 @@ pub fn harvest(creep: &mut Creep, target_id: &Id) -> Res<()> {
 
     prepend_go_to_if_far(creep, target.pos(), RANGE_HARVEST)?;
     creep.obj.harvest(&target);
-    
+
     // FIXME: Check if it worked
 
     Ok(())
 }
 
-pub fn build(creep: &mut Creep, site_id: &Id) -> Res<()> {
+fn build(creep: &mut Creep, site_id: &Id) -> Res<()> {
     let site: ConstructionSite = screeps::game::get_object_typed(&site_id)?
         .ok_or_else(|| format!("no object with id {}", site_id))?;
 
@@ -335,7 +375,7 @@ pub fn build(creep: &mut Creep, site_id: &Id) -> Res<()> {
     Ok(())
 }
 
-pub fn dismantle(creep: &mut Creep, target_id: &Id) -> Res<()> {
+fn dismantle(creep: &mut Creep, target_id: &Id) -> Res<()> {
     let target = get_structure_from_id(target_id)?;
 
     prepend_go_to_if_far(creep, target.pos(), RANGE_DISMANTLE)?;
@@ -347,7 +387,7 @@ pub fn dismantle(creep: &mut Creep, target_id: &Id) -> Res<()> {
     Ok(())
 }
 
-pub fn repair(creep: &mut Creep, target_id: &Id) -> Res<()> {
+fn repair(creep: &mut Creep, target_id: &Id) -> Res<()> {
     let target = get_structure_from_id(target_id)?;
 
     prepend_go_to_if_far(creep, target.pos(), RANGE_REPAIR)?;
@@ -360,7 +400,7 @@ pub fn repair(creep: &mut Creep, target_id: &Id) -> Res<()> {
     Ok(())
 }
 
-pub fn fortify(creep: &mut Creep, target_id: &Id) -> Res<()> {
+fn fortify(creep: &mut Creep, target_id: &Id) -> Res<()> {
     let target = get_structure_from_id(target_id)?;
 
     prepend_go_to_if_far(creep, target.pos(), RANGE_REPAIR)?;
@@ -374,9 +414,9 @@ pub fn fortify(creep: &mut Creep, target_id: &Id) -> Res<()> {
     Ok(())
 }
 
-pub fn controller_attack(creep: &mut Creep, controller_id: &Id) -> Res<()> {
-    let controller: StructureController = screeps::game::get_object_typed(&controller_id)?
-        .ok_or_else(|| format!("no object with id {}", controller_id))?;
+fn controller_attack(creep: &mut Creep, target_id: &Id) -> Res<()> {
+    let controller: StructureController = screeps::game::get_object_typed(&target_id)?
+        .ok_or_else(|| format!("no object with id {}", target_id))?;
 
     prepend_go_to_if_far(creep, controller.pos(), RANGE_CONTROLLER_ATTACK)?;
     creep.obj.attack_controller(&controller);
@@ -387,9 +427,9 @@ pub fn controller_attack(creep: &mut Creep, controller_id: &Id) -> Res<()> {
     Ok(())
 }
 
-pub fn controller_claim(creep: &mut Creep, controller_id: &Id) -> Res<()> {
-    let controller: StructureController = screeps::game::get_object_typed(&controller_id)?
-        .ok_or_else(|| format!("no object with id {}", controller_id))?;
+fn controller_claim(creep: &mut Creep, target_id: &Id) -> Res<()> {
+    let controller: StructureController = screeps::game::get_object_typed(&target_id)?
+        .ok_or_else(|| format!("no object with id {}", target_id))?;
 
     prepend_go_to_if_far(creep, controller.pos(), RANGE_CONTROLLER_CLAIM)?;
     creep.obj.claim_controller(&controller);
@@ -400,9 +440,9 @@ pub fn controller_claim(creep: &mut Creep, controller_id: &Id) -> Res<()> {
     Ok(())
 }
 
-pub fn controller_upgrade(creep: &mut Creep, controller_id: &Id) -> Res<()> {
-    let controller: StructureController = screeps::game::get_object_typed(&controller_id)?
-        .ok_or_else(|| format!("no object with id {}", controller_id))?;
+fn controller_upgrade(creep: &mut Creep, target_id: &Id) -> Res<()> {
+    let controller: StructureController = screeps::game::get_object_typed(&target_id)?
+        .ok_or_else(|| format!("no object with id {}", target_id))?;
 
     prepend_go_to_if_far(creep, controller.pos(), RANGE_CONTROLLER_UPGRADE)?;
     creep.obj.upgrade_controller(&controller);
@@ -414,9 +454,9 @@ pub fn controller_upgrade(creep: &mut Creep, controller_id: &Id) -> Res<()> {
     Ok(())
 }
 
-pub fn controller_reserve(creep: &mut Creep, controller_id: &Id) -> Res<()> {
-    let controller: StructureController = screeps::game::get_object_typed(&controller_id)?
-        .ok_or_else(|| format!("no object with id {}", controller_id))?;
+fn controller_reserve(creep: &mut Creep, target_id: &Id) -> Res<()> {
+    let controller: StructureController = screeps::game::get_object_typed(&target_id)?
+        .ok_or_else(|| format!("no object with id {}", target_id))?;
 
     prepend_go_to_if_far(creep, controller.pos(), RANGE_CONTROLLER_RESERVE)?;
     creep.obj.reserve_controller(&controller);
@@ -427,27 +467,48 @@ pub fn controller_reserve(creep: &mut Creep, controller_id: &Id) -> Res<()> {
     Ok(())
 }
 
-pub fn heal(creep: &mut Creep, creep_id: &Id) -> Res<()> {
+fn heal(creep: &mut Creep, target_id: &Id) -> Res<()> {
     unimplemented!()
 }
 
-pub fn heal_ranged(creep: &mut Creep, creep_id: &Id) -> Res<()> {
+fn heal_ranged(creep: &mut Creep, target_id: &Id) -> Res<()> {
     unimplemented!()
 }
 
-pub fn attack_melee(creep: &mut Creep, creep_id: &Id) -> Res<()> {
-    unimplemented!()
+fn attack_melee(creep: &mut Creep, target_id: &Id) -> Res<()> {
+    let target: ScreepsCreep = screeps::game::get_object_typed(&target_id)?
+        .ok_or_else(|| format!("no object with id {}", target_id))?;
+
+    // TODO: See if close?
+    creep.obj.attack(&target);
+    // FIXME: Check if it worked
+    // FIXME: If done, remove job
+
+    Ok(())
 }
 
-pub fn attack_ranged(creep: &mut Creep, creep_id: &Id) -> Res<()> {
-    unimplemented!()
+fn attack_ranged(creep: &mut Creep, target_id: &Id) -> Res<()> {
+    let target: ScreepsCreep = screeps::game::get_object_typed(&target_id)?
+        .ok_or_else(|| format!("no object with id {}", target_id))?;
+
+    // TODO: See if close?
+    creep.obj.ranged_attack(&target);
+    // FIXME: Check if it worked
+    // FIXME: If done, remove job
+
+    Ok(())
 }
 
-pub fn attack_ranged_mass(creep: &mut Creep) -> Res<()> {
-    unimplemented!()
+fn attack_ranged_mass(creep: &mut Creep) -> Res<()> {
+    // TODO: See if close?
+    creep.obj.ranged_mass_attack();
+    // FIXME: Check if it worked
+    // FIXME: If done, remove job
+
+    Ok(())
 }
 
-pub fn get_boosted(creep: &mut Creep, lab_id: &Id) -> Res<()> {
+fn get_boosted(creep: &mut Creep, lab_id: &Id) -> Res<()> {
     let lab: StructureLab = screeps::game::get_object_typed(&lab_id)?
         .ok_or_else(|| format!("no object with id {}", lab_id))?;
 
@@ -460,7 +521,7 @@ pub fn get_boosted(creep: &mut Creep, lab_id: &Id) -> Res<()> {
     Ok(())
 }
 
-pub fn get_renewed(creep: &mut Creep, spawn_id: &Id) -> Res<()> {
+fn get_renewed(creep: &mut Creep, spawn_id: &Id) -> Res<()> {
     let spawn: StructureSpawn = screeps::game::get_object_typed(&spawn_id)?
         .ok_or_else(|| format!("no object with id {}", spawn_id))?;
 
@@ -473,7 +534,7 @@ pub fn get_renewed(creep: &mut Creep, spawn_id: &Id) -> Res<()> {
     Ok(())
 }
 
-pub fn get_recycled(creep: &mut Creep, spawn_id: &Id) -> Res<()> {
+fn get_recycled(creep: &mut Creep, spawn_id: &Id) -> Res<()> {
     let spawn: StructureSpawn = screeps::game::get_object_typed(&spawn_id)?
         .ok_or_else(|| format!("no object with id {}", spawn_id))?;
 
