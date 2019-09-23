@@ -27,7 +27,9 @@ impl Drop for Room {
 impl Room {
     pub fn new(obj: ScreepRoom) -> Res<Self> {
         let memory = screeps::memory::root()
-            .get_path(&format!("rooms.{}", obj.name()))?
+            .dict_or_create("rooms")
+            .map_err(|_| "UnexpectedTypeError")?
+            .get(&obj.name().to_array_string())?
             .ok_or_else(|| format!("undefined or null room memory for {}", obj.name()))?;
         Ok(Self { obj, memory })
     }

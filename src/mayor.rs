@@ -6,7 +6,9 @@ use crate::{
     rooms::Room,
 };
 use log::*;
-use screeps::{find, memory::MemoryReference, ReturnCode, SpawnOptions, StructureSpawn};
+use screeps::{
+    find, memory::MemoryReference, ReturnCode, RoomObjectProperties, SpawnOptions, StructureSpawn,
+};
 use std::collections::HashMap;
 
 pub struct Mayor<'a> {
@@ -27,7 +29,6 @@ impl<'a> Mayor<'a> {
             .into_iter()
             .filter(|c| c.memory.home == self.room.obj.name())
             .collect::<Vec<_>>();
-
         self.determine_spawns()?;
 
         Ok(())
@@ -36,7 +37,11 @@ impl<'a> Mayor<'a> {
     pub fn determine_spawns(&self) -> Res<()> {
         // If there's nothing to spawn, just return
         let room_name = self.room.obj.name().to_array_string();
-        if !self.config.roles_to_spawn.contains_key(room_name.as_str()) {
+        if !self
+            .config
+            .roles_to_spawn()
+            .contains_key(room_name.as_str())
+        {
             return Ok(());
         }
 
@@ -62,7 +67,7 @@ impl<'a> Mayor<'a> {
             }
         }
 
-        let roles_to_spawn = &self.config.roles_to_spawn[room_name.as_str()];
+        let roles_to_spawn = &self.config.roles_to_spawn()[room_name.as_str()];
         for (role, equip_name) in roles_to_spawn {
             let counter = current_roles.entry(*role).or_insert(0);
 
@@ -87,13 +92,14 @@ impl<'a> Mayor<'a> {
     pub fn spawn(&self, spawn: StructureSpawn, role: Role, equip_name: &str) -> Res<ReturnCode> {
         let body = self
             .config
-            .equip
+            .equip()
             .get(equip_name)
             .ok_or_else(|| format!("{} not found in equip", role))?;
         let name = get_random_name();
         // FIXME: create a CreepMemory
         let memory = MemoryReference::new();
         memory.set("role", format!("{}", role));
+        memory.set("home", format!("{}", spawn.room().name()));
         let options = SpawnOptions::new().memory(memory);
 
         let ret = spawn.spawn_creep_with_options(body, &name, &options);
