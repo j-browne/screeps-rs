@@ -27,7 +27,7 @@ impl<'a> Mayor<'a> {
             .map(|c| Creep::new(c))
             .collect::<Res<Vec<_>>>()?
             .into_iter()
-            .filter(|c| c.memory.home == self.room.obj.name())
+            .filter(|c| c.memory().home == self.room.obj().name())
             .collect::<Vec<_>>();
         self.determine_spawns()?;
 
@@ -36,17 +36,18 @@ impl<'a> Mayor<'a> {
 
     pub fn determine_spawns(&self) -> Res<()> {
         // If there's nothing to spawn, just return
-        let room_name = self.room.obj.name().to_array_string();
+        let room_name = self.room.obj().name().to_array_string();
         if !self
             .config
-            .roles_to_spawn()
+            .memory()
+            .roles_to_spawn
             .contains_key(room_name.as_str())
         {
             return Ok(());
         }
 
         // If there are no spawns, just return
-        let mut spawns = self.room.obj.find(find::MY_SPAWNS);
+        let mut spawns = self.room.obj().find(find::MY_SPAWNS);
         if spawns.len() == 0 {
             return Ok(());
         }
@@ -60,14 +61,14 @@ impl<'a> Mayor<'a> {
         // through the creeps in the room and incrementing the
         // counter for that role
         let mut current_roles = HashMap::<Role, u8>::new();
-        for creep in self.room.obj.find(find::MY_CREEPS) {
+        for creep in self.room.obj().find(find::MY_CREEPS) {
             if let Ok(Some(role)) = creep.memory().get("role") {
                 let counter = current_roles.entry(role).or_insert(0);
                 *counter += 1;
             }
         }
 
-        let roles_to_spawn = &self.config.roles_to_spawn()[room_name.as_str()];
+        let roles_to_spawn = &self.config.memory().roles_to_spawn[room_name.as_str()];
         for (role, equip_name) in roles_to_spawn {
             let counter = current_roles.entry(*role).or_insert(0);
 
@@ -92,7 +93,8 @@ impl<'a> Mayor<'a> {
     pub fn spawn(&self, spawn: StructureSpawn, role: Role, equip_name: &str) -> Res<ReturnCode> {
         let body = self
             .config
-            .equip()
+            .memory()
+            .equip
             .get(equip_name)
             .ok_or_else(|| format!("{} not found in equip", role))?;
         let name = get_random_name();

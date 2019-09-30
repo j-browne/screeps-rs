@@ -1,7 +1,7 @@
 use self::actions::Action;
 use crate::error::Res;
 pub use roles::Role;
-use screeps::Creep as ScreepCreep;
+use screeps::Creep as ScreepsCreep;
 use std::collections::VecDeque;
 use stdweb::{__js_serializable_boilerplate, js_deserializable, js_serializable};
 
@@ -21,27 +21,41 @@ js_serializable!(CreepMemory);
 js_deserializable!(CreepMemory);
 
 pub struct Creep {
-    pub obj: ScreepCreep,
-    pub memory: CreepMemory,
+    obj: ScreepsCreep,
+    memory: Option<CreepMemory>,
 }
 
 impl Drop for Creep {
     fn drop(&mut self) {
         screeps::memory::root()
-            .path_set(&format!("creeps.{}", self.obj.name()), self.memory.clone());
+            .path_set(&format!("creeps.{}", self.obj.name()), self.memory.take());
     }
 }
 
 impl Creep {
-    pub fn new(obj: ScreepCreep) -> Res<Self> {
-        let memory = screeps::memory::root()
-            .get_path(&format!("creeps.{}", obj.name()))?
-            .ok_or_else(|| format!("undefined or null creep memory for {}", obj.name()))?;
+    pub fn new(obj: ScreepsCreep) -> Res<Self> {
+        let memory = Some(
+            screeps::memory::root()
+                .get_path(&format!("creeps.{}", obj.name()))?
+                .ok_or_else(|| format!("undefined or null creep memory for {}", obj.name()))?,
+        );
         Ok(Self { obj, memory })
     }
 
+    pub fn obj(&self) -> &ScreepsCreep {
+        &self.obj
+    }
+
+    pub fn memory(&self) -> &CreepMemory {
+        self.memory.as_ref().expect("creep.memory is not populated")
+    }
+
+    pub fn memory_mut(&mut self) -> &mut CreepMemory {
+        self.memory.as_mut().expect("creep.memory is not populated")
+    }
+
     pub fn run(&mut self) -> Res<()> {
-        if let Some(action) = self.memory.actions.front().cloned() {
+        if let Some(action) = self.memory().actions.front().cloned() {
             action.run(self)?;
         }
 

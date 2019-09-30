@@ -1,14 +1,12 @@
 #![allow(unused_variables)]
 use super::Creep;
-use crate::error::Res;
+use crate::{error::Res, Id};
 use screeps::{
     game::get_object_erased, traits::IntoExpectedType, ConstructionSite, Creep as ScreepsCreep,
-    HasPosition, MoveToOptions, Position, Resource, ResourceType, Source, Structure,
+    HasPosition, MoveToOptions, Position, Resource, ResourceType, RoomName, Source, Structure,
     StructureController, StructureLab, StructureSpawn,
 };
 use stdweb::{Reference, __js_serializable_boilerplate, js_deserializable, js_serializable};
-
-type Id = String;
 
 const RANGE_DISMANTLE: u32 = 1;
 const RANGE_TRANSFER: u32 = 1;
@@ -35,7 +33,7 @@ pub enum Action {
         pos: Position,
     },
     GoToRoom {
-        room_id: Id,
+        room_id: RoomName,
     },
     GoToRanged {
         pos: Position,
@@ -124,7 +122,7 @@ impl Action {
                 go_to(creep, *pos)?;
             }
             GoToRoom { room_id } => {
-                go_to_room(creep, room_id)?;
+                go_to_room(creep, *room_id)?;
             }
             GoToRanged { pos, range } => {
                 go_to_ranged(creep, *pos, *range)?;
@@ -218,7 +216,7 @@ fn prepend_go_to_if_far(creep: &mut Creep, pos: Position, range: u32) -> Res<()>
     // If target is not in range, order a GoTo first
     if !creep.obj.pos().in_range_to(&pos, range) {
         creep
-            .memory
+            .memory_mut()
             .actions
             .push_front(Action::GoToRanged { pos, range });
         // and do it
@@ -233,7 +231,7 @@ fn go_to(creep: &mut Creep, pos: Position) -> Res<()> {
 
     // When done, remove the action
     if creep.obj.pos().is_equal_to(&pos) {
-        creep.memory.actions.pop_front();
+        creep.memory_mut().actions.pop_front();
     }
 
     // FIXME: Check if it worked
@@ -241,8 +239,9 @@ fn go_to(creep: &mut Creep, pos: Position) -> Res<()> {
     Ok(())
 }
 
-fn go_to_room(creep: &mut Creep, room_id: &Id) -> Res<()> {
-    unimplemented!()
+fn go_to_room(creep: &mut Creep, room_id: RoomName) -> Res<()> {
+    let pos = Position::new(25, 25, room_id);
+    go_to_ranged(creep, pos, 25)
 }
 
 fn go_to_ranged(creep: &mut Creep, pos: Position, range: u32) -> Res<()> {
@@ -251,7 +250,7 @@ fn go_to_ranged(creep: &mut Creep, pos: Position, range: u32) -> Res<()> {
 
     // When done, remove the action
     if creep.obj.pos().in_range_to(&pos, range) {
-        creep.memory.actions.pop_front();
+        creep.memory_mut().actions.pop_front();
     }
 
     // FIXME: Check if it worked
@@ -269,7 +268,7 @@ fn transfer_all(creep: &mut Creep, target_id: &Id, resource: ResourceType) -> Re
     prepend_go_to_if_far(creep, target_pos, RANGE_TRANSFER)?;
     creep.obj.transfer_all(target, resource);
 
-    creep.memory.actions.pop_front();
+    creep.memory_mut().actions.pop_front();
 
     // FIXME: Creeps aren't handled
     // FIXME: Check if it worked
@@ -292,7 +291,7 @@ fn transfer_amount(
     prepend_go_to_if_far(creep, target_pos, RANGE_TRANSFER)?;
     creep.obj.transfer_amount(target, resource, amount);
 
-    creep.memory.actions.pop_front();
+    creep.memory_mut().actions.pop_front();
 
     // FIXME: Creeps aren't handled
     // FIXME: Check if it worked
@@ -310,7 +309,7 @@ fn withdraw_all(creep: &mut Creep, target_id: &Id, resource: ResourceType) -> Re
     prepend_go_to_if_far(creep, target_pos, RANGE_WITHDRAW)?;
     creep.obj.withdraw_all(target, resource);
 
-    creep.memory.actions.pop_front();
+    creep.memory_mut().actions.pop_front();
 
     // FIXME: Check if it worked
 
@@ -332,7 +331,7 @@ fn withdraw_amount(
     prepend_go_to_if_far(creep, target_pos, RANGE_WITHDRAW)?;
     creep.obj.withdraw_amount(target, resource, amount);
 
-    creep.memory.actions.pop_front();
+    creep.memory_mut().actions.pop_front();
 
     // FIXME: Check if it worked
 
@@ -346,7 +345,7 @@ fn pickup(creep: &mut Creep, target_id: &Id) -> Res<()> {
     prepend_go_to_if_far(creep, target.pos(), RANGE_TRANSFER)?;
     creep.obj.pickup(&target);
 
-    creep.memory.actions.pop_front();
+    creep.memory_mut().actions.pop_front();
 
     // FIXME: Check if it worked
 
@@ -372,7 +371,7 @@ fn build(creep: &mut Creep, site_id: &Id) -> Res<()> {
     prepend_go_to_if_far(creep, site.pos(), RANGE_BUILD)?;
     creep.obj.build(&site);
 
-//    creep.memory.actions.pop_front();
+    //    creep.memory().actions.pop_front();
 
     // FIXME: Check if it worked
     // FIXME: If not enough energy, get more energy
@@ -387,7 +386,7 @@ fn dismantle(creep: &mut Creep, target_id: &Id) -> Res<()> {
     prepend_go_to_if_far(creep, target.pos(), RANGE_DISMANTLE)?;
     creep.obj.dismantle(&target);
 
-//    creep.memory.actions.pop_front();
+    //    creep.memory().actions.pop_front();
 
     // FIXME: Check if it worked
     // FIXME: If done, remove job
@@ -401,7 +400,7 @@ fn repair(creep: &mut Creep, target_id: &Id) -> Res<()> {
     prepend_go_to_if_far(creep, target.pos(), RANGE_REPAIR)?;
     creep.obj.repair(&target);
 
-//    creep.memory.actions.pop_front();
+    //    creep.memory().actions.pop_front();
 
     // FIXME: Check if it worked
     // FIXME: If not enough energy, get more energy
@@ -416,7 +415,7 @@ fn fortify(creep: &mut Creep, target_id: &Id) -> Res<()> {
     prepend_go_to_if_far(creep, target.pos(), RANGE_REPAIR)?;
     creep.obj.repair(&target);
 
-//    creep.memory.actions.pop_front();
+    //    creep.memory().actions.pop_front();
 
     // FIXME: Check if it worked
     // FIXME: If not enough energy, get more energy
@@ -433,7 +432,7 @@ fn controller_attack(creep: &mut Creep, target_id: &Id) -> Res<()> {
     prepend_go_to_if_far(creep, controller.pos(), RANGE_CONTROLLER_ATTACK)?;
     creep.obj.attack_controller(&controller);
 
-    creep.memory.actions.pop_front();
+    creep.memory_mut().actions.pop_front();
 
     // FIXME: Check if it worked
 
@@ -447,7 +446,7 @@ fn controller_claim(creep: &mut Creep, target_id: &Id) -> Res<()> {
     prepend_go_to_if_far(creep, controller.pos(), RANGE_CONTROLLER_CLAIM)?;
     creep.obj.claim_controller(&controller);
 
-    creep.memory.actions.pop_front();
+    creep.memory_mut().actions.pop_front();
 
     // FIXME: Check if it worked
 
@@ -461,7 +460,7 @@ fn controller_upgrade(creep: &mut Creep, target_id: &Id) -> Res<()> {
     prepend_go_to_if_far(creep, controller.pos(), RANGE_CONTROLLER_UPGRADE)?;
     creep.obj.upgrade_controller(&controller);
 
-//    creep.memory.actions.pop_front();
+    //    creep.memory().actions.pop_front();
 
     // FIXME: Check if it worked
     // FIXME: If not enough energy, get more energy
@@ -484,11 +483,31 @@ fn controller_reserve(creep: &mut Creep, target_id: &Id) -> Res<()> {
 }
 
 fn heal(creep: &mut Creep, target_id: &Id) -> Res<()> {
-    unimplemented!()
+    let target: ScreepsCreep = screeps::game::get_object_typed(&target_id)?
+        .ok_or_else(|| format!("no object with id {}", target_id))?;
+
+    // TODO: See if close?
+    creep.obj.heal(&target);
+
+    creep.memory_mut().actions.pop_front();
+
+    // FIXME: Check if it worked
+
+    Ok(())
 }
 
 fn heal_ranged(creep: &mut Creep, target_id: &Id) -> Res<()> {
-    unimplemented!()
+    let target: ScreepsCreep = screeps::game::get_object_typed(&target_id)?
+        .ok_or_else(|| format!("no object with id {}", target_id))?;
+
+    // TODO: See if close?
+    creep.obj.ranged_heal(&target);
+
+    creep.memory_mut().actions.pop_front();
+
+    // FIXME: Check if it worked
+
+    Ok(())
 }
 
 fn attack_melee(creep: &mut Creep, target_id: &Id) -> Res<()> {
@@ -498,7 +517,7 @@ fn attack_melee(creep: &mut Creep, target_id: &Id) -> Res<()> {
     // TODO: See if close?
     creep.obj.attack(&target);
 
-    creep.memory.actions.pop_front();
+    creep.memory_mut().actions.pop_front();
 
     // FIXME: Check if it worked
 
@@ -512,7 +531,7 @@ fn attack_ranged(creep: &mut Creep, target_id: &Id) -> Res<()> {
     // TODO: See if close?
     creep.obj.ranged_attack(&target);
 
-    creep.memory.actions.pop_front();
+    creep.memory_mut().actions.pop_front();
 
     // FIXME: Check if it worked
 
@@ -523,7 +542,7 @@ fn attack_ranged_mass(creep: &mut Creep) -> Res<()> {
     // TODO: See if close?
     creep.obj.ranged_mass_attack();
 
-    creep.memory.actions.pop_front();
+    creep.memory_mut().actions.pop_front();
 
     // FIXME: Check if it worked
 
@@ -537,7 +556,7 @@ fn get_boosted(creep: &mut Creep, lab_id: &Id) -> Res<()> {
     prepend_go_to_if_far(creep, lab.pos(), RANGE_BOOST)?;
     lab.boost_creep(&creep.obj, None);
 
-    creep.memory.actions.pop_front();
+    creep.memory_mut().actions.pop_front();
 
     // FIXME: Check if it worked
 
@@ -551,7 +570,7 @@ fn get_renewed(creep: &mut Creep, spawn_id: &Id) -> Res<()> {
     prepend_go_to_if_far(creep, spawn.pos(), RANGE_RENEW)?;
     spawn.renew_creep(&creep.obj);
 
-    creep.memory.actions.pop_front();
+    creep.memory_mut().actions.pop_front();
 
     // FIXME: Check if it worked
 
@@ -565,7 +584,7 @@ fn get_recycled(creep: &mut Creep, spawn_id: &Id) -> Res<()> {
     prepend_go_to_if_far(creep, spawn.pos(), RANGE_RECYCLE)?;
     spawn.recycle_creep(&creep.obj);
 
-    creep.memory.actions.pop_front();
+    creep.memory_mut().actions.pop_front();
 
     // FIXME: Check if it worked
 
