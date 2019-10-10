@@ -1,23 +1,9 @@
-#[macro_use]
-extern crate serde_derive;
-
-use crate::{
-    config::Config, controllers::MemoryController, creeps::Creep, error::Res, mayor::Mayor,
-    rooms::Room,
+use lib::{
+    config::Config, controllers::MemoryController, creeps::Creep, error::Res, logging,
+    mayor::Mayor, rooms::Room,
 };
 use log::*;
 use stdweb::js;
-
-mod config;
-mod controllers;
-mod creeps;
-mod error;
-mod logging;
-mod mayor;
-mod names;
-mod rooms;
-
-type Id = String;
 
 fn main() {
     logging::setup_logging(logging::Info);

@@ -1,14 +1,19 @@
 [package]
-name = "screeps_putt"
+name = "screeps_putt_lib"
 version = "0.0.0"
 authors = []
 edition = "2018"
 
 [dependencies]
-lib = { path = "lib", package = "screeps_putt_lib" }
 stdweb = "0.4"
 log = "0.4"
+fern = "0.5"
+rand = { version = "*", features = ["stdweb", "small_rng"] }
+rand_core = "*"
 screeps-game-api = {git = "https://github.com/j-browne/screeps-game-api/", branch = "v0.6.0_patched"}
+serde = "*"
+serde_derive = "*"
+serde_json = "*"
 
 [profile.release]
 panic = "abort"
