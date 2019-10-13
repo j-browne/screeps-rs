@@ -13,6 +13,10 @@ pub struct RoomMemory {
     pub extension_spots: Vec<Position>,
     #[serde(default)]
     pub lab_spots: HashMap<ResourceType, Id>,
+    #[serde(default)]
+    pub forts: Vec<Position>,
+    #[serde(default)]
+    pub repair_blacklist: Vec<Id>,
 }
 
 js_serializable!(RoomMemory);
